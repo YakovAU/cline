@@ -81,7 +81,7 @@ declare module "vscode" {
 }
 
 const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, isPopup }: ApiOptionsProps) => {
-	const { apiConfiguration, setApiConfiguration, uriScheme } = useExtensionState()
+	const { apiConfiguration, setApiConfiguration, uriScheme, openAiModels } = useExtensionState()
 	const [ollamaModels, setOllamaModels] = useState<string[]>([])
 	const [lmStudioModels, setLmStudioModels] = useState<string[]>([])
 	const [vsCodeLmModels, setVsCodeLmModels] = useState<vscodemodels.LanguageModelChatSelector[]>([])
@@ -720,15 +720,66 @@ const ApiOptions = ({ showModelOptions, apiErrorMessage, modelIdErrorMessage, is
 						type="password"
 						onInput={handleInputChange("openAiApiKey")}
 						placeholder="Enter API Key...">
-						<span style={{ fontWeight: 500 }}>API Key</span>
+						<span style={{ fontWeight: 500 }}>API Key (optional)</span>
 					</VSCodeTextField>
-					<VSCodeTextField
-						value={apiConfiguration?.openAiModelId || ""}
-						style={{ width: "100%" }}
-						onInput={handleInputChange("openAiModelId")}
-						placeholder={"Enter Model ID..."}>
-						<span style={{ fontWeight: 500 }}>Model ID</span>
-					</VSCodeTextField>
+					
+					{apiConfiguration?.openAiBaseUrl ? (
+						<>
+							<button
+								onClick={() => {
+									vscode.postMessage({
+										type: "refreshOpenAiModels",
+									})
+								}}
+								style={{ margin: "5px 0", padding: "4px 10px" }}
+								className="vscode-button">
+								Fetch Available Models
+							</button>
+							
+							{openAiModels?.length > 0 ? (
+								<DropdownContainer className="dropdown-container">
+									<label htmlFor="openai-compatible-model">
+										<span style={{ fontWeight: 500 }}>Model</span>
+									</label>
+									<VSCodeDropdown
+										id="openai-compatible-model"
+										value={apiConfiguration?.openAiModelId || ""}
+										onChange={handleInputChange("openAiModelId")}
+										style={{ width: "100%" }}>
+										<VSCodeOption value="">Select a model...</VSCodeOption>
+										{openAiModels.map((modelId) => (
+											<VSCodeOption 
+												key={modelId} 
+												value={modelId}
+												style={{
+													whiteSpace: "normal",
+													wordWrap: "break-word",
+													maxWidth: "100%",
+												}}>
+												{modelId}
+											</VSCodeOption>
+										))}
+									</VSCodeDropdown>
+								</DropdownContainer>
+							) : (
+								<VSCodeTextField
+									value={apiConfiguration?.openAiModelId || ""}
+									style={{ width: "100%" }}
+									onInput={handleInputChange("openAiModelId")}
+									placeholder={"Enter Model ID..."}>
+									<span style={{ fontWeight: 500 }}>Model ID</span>
+								</VSCodeTextField>
+							)}
+						</>
+					) : (
+						<VSCodeTextField
+							value={apiConfiguration?.openAiModelId || ""}
+							style={{ width: "100%" }}
+							onInput={handleInputChange("openAiModelId")}
+							placeholder={"Enter Model ID..."}>
+							<span style={{ fontWeight: 500 }}>Model ID</span>
+						</VSCodeTextField>
+					)}
 					<VSCodeCheckbox
 						checked={azureApiVersionSelected}
 						onChange={(e: any) => {

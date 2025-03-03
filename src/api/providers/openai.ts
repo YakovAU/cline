@@ -11,27 +11,62 @@ import { ChatCompletionReasoningEffort } from "openai/resources/chat/completions
 export class OpenAiHandler implements ApiHandler {
 	private options: ApiHandlerOptions
 	private client: OpenAI
+	private availableModels: string[] = []
 
 	constructor(options: ApiHandlerOptions) {
 		this.options = options
+		const apiKey = this.options.openAiApiKey || ''; // Make API key explicitly optional
 		// Azure API shape slightly differs from the core API shape: https://github.com/openai/openai-node?tab=readme-ov-file#microsoft-azure-openai
 		if (this.options.openAiBaseUrl?.toLowerCase().includes("azure.com")) {
 			this.client = new AzureOpenAI({
 				baseURL: this.options.openAiBaseUrl,
-				apiKey: this.options.openAiApiKey,
+				apiKey: apiKey, // API key is optional
 				apiVersion: this.options.azureApiVersion || azureOpenAiDefaultApiVersion,
 			})
 		} else {
 			this.client = new OpenAI({
 				baseURL: this.options.openAiBaseUrl,
-				apiKey: this.options.openAiApiKey,
+				apiKey: apiKey, // API key is optional
 			})
+		}
+
+		// Initialize the list of available models
+		this.initializeModelList();
+	}
+
+	private async initializeModelList() {
+		try {
+			this.availableModels = await this.listModels();
+			console.log(`Retrieved ${this.availableModels.length} models from the server`);
+		} catch (error: any) {
+			console.error("Failed to retrieve models during initialization:", error.message);
+			this.availableModels = [];
 		}
 	}
 
 	@withRetry()
 	async *createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream {
-		const modelId = this.options.openAiModelId ?? ""
+		// If model ID is not specified, try to get the first available model from the cached list
+		let modelId = this.options.openAiModelId ?? ""
+		
+		if (!modelId) {
+			// Use cached models if available, otherwise refresh the list
+			if (this.availableModels.length === 0) {
+				try {
+					this.availableModels = await this.listModels();
+				} catch (error: any) {
+					console.error("Failed to retrieve models:", error.message);
+				}
+			}
+			
+			if (this.availableModels.length > 0) {
+				modelId = this.availableModels[0];
+				console.log(`Using first available model: ${modelId}`);
+			} else {
+				throw new Error("No models available from the OpenAI-compatible server");
+			}
+		}
+		
 		const isDeepseekReasoner = modelId.includes("deepseek-reasoner")
 		const isO3Mini = modelId.includes("o3-mini")
 
@@ -86,10 +121,29 @@ export class OpenAiHandler implements ApiHandler {
 		}
 	}
 
+	async listModels(): Promise<string[]> {
+		try {
+			const response = await this.client.models.list();
+			return response.data.map((model: any) => model.id);
+		} catch (error: any) { // Explicitly type error as any or Error
+			console.error("Error fetching model list:", error.message);
+			return [];
+		}
+	}
+
 	getModel(): { id: string; info: ModelInfo } {
 		return {
 			id: this.options.openAiModelId ?? "",
 			info: this.options.openAiModelInfo ?? openAiModelInfoSaneDefaults,
 		}
+	}
+
+	/**
+	 * Gets the list of models available from the OpenAI-compatible server
+	 * This can be used by the UI to present a model selection dropdown to the user
+	 * @returns The list of model IDs available from the server
+	 */
+	getAvailableModels(): string[] {
+		return this.availableModels;
 	}
 }
