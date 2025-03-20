@@ -17,7 +17,8 @@ export class OpenAiHandler implements ApiHandler {
 		this.options = options
 		const apiKey = this.options.openAiApiKey || ''; // Make API key explicitly optional
 		// Azure API shape slightly differs from the core API shape: https://github.com/openai/openai-node?tab=readme-ov-file#microsoft-azure-openai
-		if (this.options.openAiBaseUrl?.toLowerCase().includes("azure.com")) {
+		// Use azureApiVersion to determine if this is an Azure endpoint, since the URL may not always contain 'azure.com'
+		if (this.options.azureApiVersion || this.options.openAiBaseUrl?.toLowerCase().includes("azure.com")) {
 			this.client = new AzureOpenAI({
 				baseURL: this.options.openAiBaseUrl,
 				apiKey: apiKey, // API key is optional
