@@ -69,6 +69,7 @@ export class OpenAiHandler implements ApiHandler {
 		}
 		
 		const isDeepseekReasoner = modelId.includes("deepseek-reasoner")
+		const isR1FormatRequired = this.options.openAiModelInfo?.isR1FormatRequired ?? false
 		const isO3Mini = modelId.includes("o3-mini")
 
 		let openAiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -78,7 +79,7 @@ export class OpenAiHandler implements ApiHandler {
 		let temperature: number | undefined = this.options.openAiModelInfo?.temperature ?? openAiModelInfoSaneDefaults.temperature
 		let reasoningEffort: ChatCompletionReasoningEffort | undefined = undefined
 
-		if (isDeepseekReasoner) {
+		if (isDeepseekReasoner || isR1FormatRequired) {
 			openAiMessages = convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 		}
 
