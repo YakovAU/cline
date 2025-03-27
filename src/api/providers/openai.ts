@@ -78,6 +78,13 @@ export class OpenAiHandler implements ApiHandler {
 		]
 		let temperature: number | undefined = this.options.openAiModelInfo?.temperature ?? openAiModelInfoSaneDefaults.temperature
 		let reasoningEffort: ChatCompletionReasoningEffort | undefined = undefined
+		let maxTokens: number | undefined
+
+		if (this.options.openAiModelInfo?.maxTokens && this.options.openAiModelInfo.maxTokens > 0) {
+			maxTokens = Number(this.options.openAiModelInfo.maxTokens)
+		} else {
+			maxTokens = undefined
+		}
 
 		if (isDeepseekReasoner || isR1FormatRequired) {
 			openAiMessages = convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
@@ -93,6 +100,7 @@ export class OpenAiHandler implements ApiHandler {
 			model: modelId,
 			messages: openAiMessages,
 			temperature,
+			max_tokens: maxTokens,
 			reasoning_effort: reasoningEffort,
 			stream: true,
 			stream_options: { include_usage: true },
